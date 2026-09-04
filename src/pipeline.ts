@@ -6,7 +6,7 @@ import { ScriptSchema, type Script } from "./render/script-schema.js";
 import { loadConfig } from "./config.js";
 import { createTtsClient } from "./tts/tts-client.js";
 import { fetchImage } from "./assets/image-fetcher.js";
-import { getDurationSec, concatWithSilence, mixSfxOntoVoice, type SfxMixSpec } from "./assets/audio-tools.js";
+import { getDurationSec, concatWithSilence, mixSfxOntoVoice, extractThumbnail, type SfxMixSpec } from "./assets/audio-tools.js";
 import { indexSfxLibrary, pickSfxForScene, defaultPlayback } from "./assets/sfx-selector.js";
 import { existsSync } from "node:fs";
 import { composeHtml } from "./render/html-composer.js";
@@ -40,6 +40,45 @@ const HYPERFRAMES_CONFIG = {
   },
 };
 
+export function buildCaptionText(script: Script): string {
+  const title = script.metadata.title;
+  const channel = script.metadata.channel;
+  const domain = script.metadata.source.domain;
+
+  const bodyScenes = script.scenes.filter((s) => s.type === "body");
+  const bodyBullets = bodyScenes
+    .map((s) => `- ${s.voiceText}`)
+    .join("\n");
+
+  const hookScene = script.scenes.find((s) => s.type === "hook");
+  const hookText = hookScene?.voiceText ?? title;
+
+  const channelTag = "#" + channel.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  return [
+    "=== TIÊU ĐỀ VIDEO ===",
+    title,
+    "",
+    "=== MÔ TẢ VIDEO ===",
+    `Bản tin cập nhật từ ${domain}:`,
+    bodyBullets,
+    "",
+    `Theo dõi kênh ${channel} để cập nhật thông tin mới nhất mỗi ngày!`,
+    `Nguồn: ${domain}`,
+    "",
+    "=== HASHTAGS ===",
+    `#shorts #tintuc #xuhuong #fyp ${channelTag}`.trim(),
+    "",
+    "=== NỘI DUNG ĐĂNG NHANH (TIKTOK / SHORTS / REELS) ===",
+    hookText,
+    "",
+    `Nguồn: ${domain} | Kênh: ${channel}`,
+    "",
+    `#shorts #tintuc #xuhuong #fyp ${channelTag}`.trim(),
+    "",
+  ].join("\n");
+}
+
 export async function runPipeline(scriptPath: string): Promise<void> {
   const cfg = loadConfig();
   const outputDir = dirname(scriptPath);
@@ -58,15 +97,50 @@ export async function runPipeline(scriptPath: string): Promise<void> {
   }
   const script: Script = ScriptSchema.parse(raw);
 
+  // Outro configuration from .env:
+  if (!cfg.outro.enabled) {
+    script.scenes = script.scenes.filter((s) => s.type !== "outro");
+    log.info("  Outro scene disabled by .env config (SHOW_OUTRO=false / ENABLE_OUTRO=false)");
+  } else {
+    const outroScene = script.scenes.find((s) => s.type === "outro");
+    if (outroScene) {
+      if (cfg.outro.voiceText) {
+        outroScene.voiceText = cfg.outro.voiceText;
+        log.info(`  Outro voice text configured from .env: "${cfg.outro.voiceText}"`);
+      }
+      if (cfg.outro.channelName && outroScene.templateData.template === "outro") {
+        outroScene.templateData.channelName = cfg.outro.channelName;
+      }
+      if (cfg.outro.ctaTop && outroScene.templateData.template === "outro") {
+        outroScene.templateData.ctaTop = cfg.outro.ctaTop;
+      }
+    }
+  }
+
   // STEP 2
   log.step(2, TOTAL_STEPS, "Write script.txt for CapCut");
   const fullText = script.scenes.map((s) => s.voiceText).join("\n\n");
   await writeFile(join(outputDir, "script.txt"), fullText);
 
   // STEP 3 + 4 in parallel
-  log.step(3, TOTAL_STEPS, "Fetch og:image (parallel) + Step 4 TTS");
-  const imgPath = join(outputDir, "images", "bg.jpg");
-  const imgPromise = fetchImage(script.metadata.source.image, imgPath);
+  log.step(3, TOTAL_STEPS, "Fetch images (parallel) + Step 4 TTS");
+  const imagesDir = join(outputDir, "images");
+  await mkdir(imagesDir, { recursive: true });
+
+  const mainImgPath = join(imagesDir, "bg.jpg");
+  const mainImgPromise = fetchImage(script.metadata.source.image, mainImgPath);
+
+  // Fetch scene-specific images if any bgSrc is a remote URL
+  const sceneImgPromises = script.scenes.map(async (scene) => {
+    const bgSrc = scene.templateData.bgSrc;
+    if (bgSrc && (bgSrc.startsWith("http://") || bgSrc.startsWith("https://"))) {
+      const destPath = join(imagesDir, `scene-${scene.id}.jpg`);
+      const res = await fetchImage(bgSrc, destPath);
+      if (res.success) {
+        scene.templateData.bgSrc = `images/scene-${scene.id}.jpg`;
+      }
+    }
+  });
 
   // STEP 4
   const ttsClient = createTtsClient(cfg);
@@ -98,8 +172,9 @@ export async function runPipeline(scriptPath: string): Promise<void> {
     }),
   );
 
-  const [imgResult, sceneAudio] = await Promise.all([
-    imgPromise,
+  const [imgResult, _, sceneAudio] = await Promise.all([
+    mainImgPromise,
+    Promise.all(sceneImgPromises),
     Promise.all(sceneAudioPromises),
   ]);
 
@@ -108,6 +183,13 @@ export async function runPipeline(scriptPath: string): Promise<void> {
     bgImageRelPath = "images/bg.jpg";
   } else {
     log.warn(`Background image fetch failed: ${imgResult.reason} → using gradient fallback`);
+  }
+
+  // Substitute literal "$source.image" in any scene.templateData.bgSrc
+  for (const s of script.scenes) {
+    if (s.templateData.bgSrc === "$source.image") {
+      s.templateData.bgSrc = bgImageRelPath ?? undefined;
+    }
   }
 
   // STEP 5
@@ -215,7 +297,10 @@ export async function runPipeline(scriptPath: string): Promise<void> {
     audioRelPath: "voice.mp3",
     tiktok: cfg.tiktok,
     tiktokAvatarRelPath: ttAvatarFile,
-    outroHoldSec: OUTRO_HOLD_SEC,
+    outroHoldSec: cfg.outro.holdSec,
+    showWatermark: cfg.watermark.enabled,
+    watermark: cfg.watermark,
+    outro: cfg.outro,
   });
 
   // hyperframes expects: index.html (NOT composition.html), hyperframes.json, meta.json in DIR
@@ -243,10 +328,26 @@ export async function runPipeline(scriptPath: string): Promise<void> {
   await renderWithHyperframes({ compositionDir: outputDir, outputPath: videoPath });
 
   // STEP 8
-  log.step(8, TOTAL_STEPS, "Done");
+  log.step(8, TOTAL_STEPS, "Thumbnail + Caption + Done");
+  const thumbnailPath = join(outputDir, "thumbnail.jpg");
+  try {
+    await extractThumbnail(videoPath, thumbnailPath, 1.5);
+    log.info(`  Thumbnail extracted: ${thumbnailPath}`);
+  } catch (err: any) {
+    log.warn(`  Failed to extract thumbnail: ${err?.message ?? err}`);
+  }
+
+  const captionPath = join(outputDir, "caption.txt");
+  if (!existsSync(captionPath)) {
+    await writeFile(captionPath, buildCaptionText(script), "utf8");
+  }
+
   console.log("\n=== Result ===");
-  console.log(`Video:  ${videoPath}`);
-  console.log(`Audio:  ${voiceMp3}  (cho CapCut)`);
-  console.log(`Script: ${join(outputDir, "script.txt")}  (cho CapCut auto-caption)`);
+  console.log(`Video:     ${videoPath}`);
+  console.log(`Thumbnail: ${thumbnailPath}`);
+  console.log(`Audio:     ${voiceMp3}  (cho CapCut)`);
+  console.log(`Script:    ${join(outputDir, "script.txt")}  (cho CapCut auto-caption)`);
+  console.log(`Caption:   ${captionPath}  (Tiêu đề, mô tả & hashtag)`);
   console.log(`Tong thoi luong: ${totalAudioSec.toFixed(2)}s`);
 }
+

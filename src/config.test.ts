@@ -24,6 +24,23 @@ const ENV_KEYS = [
   "VBEE_POLL_INTERVAL_MS",
   "VBEE_POLL_TIMEOUT_MS",
   "TTS_CONCURRENCY",
+  "SHOW_WATERMARK",
+  "WATERMARK",
+  "WATERMARK_BRAND_NAME",
+  "WATERMARK_BRAND_TAG",
+  "WATERMARK_BRAND_ICON",
+  "WATERMARK_HANDLE",
+  "WATERMARK_SHOW_HEADER",
+  "WATERMARK_SHOW_HANDLE",
+  "WATERMARK_SHOW_DOMAIN",
+  "SHOW_OUTRO",
+  "ENABLE_OUTRO",
+  "OUTRO_ENABLED",
+  "OUTRO_CTA_TOP",
+  "OUTRO_CHANNEL_NAME",
+  "OUTRO_VOICE_TEXT",
+  "OUTRO_SHOW_TIKTOK_CARD",
+  "OUTRO_HOLD_SEC",
 ];
 
 describe("loadConfig", () => {
@@ -168,6 +185,89 @@ describe("loadConfig", () => {
       const cfg = loadConfig();
       expect(cfg.vbeeVoiceCode).toBe("n_hanoi_female_nguyetnga2_book_vc");
       expect(cfg.vbeeSpeedRate).toBe(1.2);
+    });
+  });
+
+  describe("Watermark configuration", () => {
+    it("defaults to enabled with standard defaults", () => {
+      const cfg = loadConfig();
+      expect(cfg.watermark.enabled).toBe(true);
+      expect(cfg.watermark.brandTag).toBe("TIN TỨC");
+      expect(cfg.watermark.brandIcon).toBe(">_");
+      expect(cfg.watermark.showHeader).toBe(true);
+      expect(cfg.watermark.showHandle).toBe(true);
+      expect(cfg.watermark.showDomain).toBe(true);
+    });
+
+    it("respects SHOW_WATERMARK=false", () => {
+      process.env.SHOW_WATERMARK = "false";
+      const cfg = loadConfig();
+      expect(cfg.watermark.enabled).toBe(false);
+      expect(cfg.showWatermark).toBe(false);
+    });
+
+    it("reads custom watermark branding from env", () => {
+      process.env.SHOW_WATERMARK = "true";
+      process.env.WATERMARK_BRAND_NAME = "Kênh Tin Nhanh";
+      process.env.WATERMARK_BRAND_TAG = "HOT NEWS";
+      process.env.WATERMARK_BRAND_ICON = "⚡";
+      process.env.WATERMARK_HANDLE = "@tinnhanh60s";
+      process.env.WATERMARK_SHOW_HEADER = "true";
+      process.env.WATERMARK_SHOW_HANDLE = "false";
+      process.env.WATERMARK_SHOW_DOMAIN = "false";
+      const cfg = loadConfig();
+      expect(cfg.watermark.enabled).toBe(true);
+      expect(cfg.watermark.brandName).toBe("Kênh Tin Nhanh");
+      expect(cfg.watermark.brandTag).toBe("HOT NEWS");
+      expect(cfg.watermark.brandIcon).toBe("⚡");
+      expect(cfg.watermark.handle).toBe("@tinnhanh60s");
+      expect(cfg.watermark.showHeader).toBe(true);
+      expect(cfg.watermark.showHandle).toBe(false);
+      expect(cfg.watermark.showDomain).toBe(false);
+    });
+  });
+
+  describe("Outro configuration", () => {
+    it("defaults to enabled with standard defaults", () => {
+      const cfg = loadConfig();
+      expect(cfg.outro.enabled).toBe(true);
+      expect(cfg.outro.ctaTop).toBeUndefined();
+      expect(cfg.outro.channelName).toBeUndefined();
+      expect(cfg.outro.voiceText).toBeUndefined();
+      expect(cfg.outro.showTiktokCard).toBe(true);
+      expect(cfg.outro.holdSec).toBe(3);
+    });
+
+    it("respects SHOW_OUTRO=false", () => {
+      process.env.SHOW_OUTRO = "false";
+      const cfg = loadConfig();
+      expect(cfg.outro.enabled).toBe(false);
+    });
+
+    it("respects ENABLE_OUTRO=false and OUTRO_ENABLED=false", () => {
+      process.env.ENABLE_OUTRO = "false";
+      expect(loadConfig().outro.enabled).toBe(false);
+
+      delete process.env.ENABLE_OUTRO;
+      process.env.OUTRO_ENABLED = "false";
+      expect(loadConfig().outro.enabled).toBe(false);
+    });
+
+    it("reads custom outro options from env", () => {
+      process.env.SHOW_OUTRO = "true";
+      process.env.OUTRO_CTA_TOP = "THEO DÕI ĐỂ KHÔNG BỎ LỠ";
+      process.env.OUTRO_CHANNEL_NAME = "Tin Tức 24h";
+      process.env.OUTRO_VOICE_TEXT = "Cảm ơn bạn đã xem. Đừng quên bấm theo dõi kênh nhé.";
+      process.env.OUTRO_SHOW_TIKTOK_CARD = "false";
+      process.env.OUTRO_HOLD_SEC = "4.5";
+
+      const cfg = loadConfig();
+      expect(cfg.outro.enabled).toBe(true);
+      expect(cfg.outro.ctaTop).toBe("THEO DÕI ĐỂ KHÔNG BỎ LỠ");
+      expect(cfg.outro.channelName).toBe("Tin Tức 24h");
+      expect(cfg.outro.voiceText).toBe("Cảm ơn bạn đã xem. Đừng quên bấm theo dõi kênh nhé.");
+      expect(cfg.outro.showTiktokCard).toBe(false);
+      expect(cfg.outro.holdSec).toBe(4.5);
     });
   });
 

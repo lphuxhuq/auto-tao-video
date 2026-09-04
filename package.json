@@ -33,7 +33,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Cuongyd196/auto-video-gen.git"
+    "url": "https://github.com/lphuxhuq/auto-tao-video.git"
   },
   "dependencies": {
     "axios": "^1.15.2",

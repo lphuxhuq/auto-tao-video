@@ -1,11 +1,11 @@
 ---
 name: create-news-video
-description: Tạo video tin tức ngắn 9:16 (~60s) từ URL bài báo hoặc file .txt tiếng Việt. Trigger khi user yêu cầu tạo video tin tức, làm short news, làm bản tin video, render tin thành video, làm TikTok tin tức. Output: video.mp4 + voice.mp3 + script.txt cho CapCut.
+description: Tạo video tin tức ngắn 9:16 (~60s) nhiều ảnh (multi-image) và giàu chi tiết từ URL bài báo hoặc file .txt tiếng Việt. Trigger khi user yêu cầu tạo video tin tức, làm short news, làm bản tin video, render tin thành video, làm TikTok tin tức. Output: video.mp4 + thumbnail.jpg + voice.mp3 + script.txt cho CapCut + caption.txt (Tiêu đề, mô tả & hashtag #shorts).
 ---
 
 # Create News Video Skill
 
-Generate a Vietnamese 9:16 motion-graphic news video from a URL or .txt file.
+Generate a Vietnamese 9:16 motion-graphic news video from a URL or .txt file with rich visuals (multi-image) and in-depth details.
 
 ## Input
 
@@ -18,7 +18,7 @@ Single argument: a news article URL (starts with `http://` or `https://`) OR a p
 - Starts with `http://` or `https://` → URL mode
 - Otherwise → file mode
 
-### Step 2: Fetch content
+### Step 2: Fetch content & images
 
 **URL mode:**
 - Use `read_url_content` (or `browser_subagent` if the page is dynamic / JS-rendered).
@@ -26,7 +26,8 @@ Single argument: a news article URL (starts with `http://` or `https://`) OR a p
   - `title` (string): tiêu đề bài báo
   - `content` (string): nội dung chính, ~500-1500 từ
   - `ogImage` (string|null): URL ảnh og:image (meta og:image hoặc ảnh đầu bài)
-  - `domain` (string): domain của URL (vd "vnexpress.net")
+  - `images` (string[]): danh sách tất cả URL ảnh thực tế có trong bài báo (để làm tư liệu đa ảnh cho từng phân cảnh)
+  - `domain` (string): domain của URL (vd "thanhnien.vn", "vnexpress.net")
 - If fetching fails (paywall, blocking, 4xx) → tell user to save content to a .txt file and pass that instead. Stop.
 
 **File mode:**
@@ -34,6 +35,7 @@ Single argument: a news article URL (starts with `http://` or `https://`) OR a p
 - Title = first non-empty line (strip whitespace, max 80 chars)
 - Content = remaining lines joined
 - ogImage = `null`
+- images = `[]`
 - domain = `"local"`
 
 ### Step 3: Create slug + output directory
@@ -74,7 +76,7 @@ The `voiceText` field is read aloud by Edge TTS / LucyLab / ElevenLabs / Vbee. *
 | Percentage with decimal | `30%` | `ba mươi phần trăm` |
 | Time | `60 giây` | `sáu mươi giây` |
 | Frequency | `5G` | `năm gờ` (be careful — TTS often says "năm-gờ") |
-| Channel name | `CườngIT` / `Cường IT` | `Cường ai ti` |
+| Channel name | `Tin tức 24h` | `Tin tức hai mươi bốn giờ` |
 
 **Notation choices:**
 - For decimal point use `chấm` (more spoken/natural) or `phẩy` (formal). Both work; pick consistent.
@@ -124,38 +126,60 @@ RIGHT (natural):
 ```
 
 **Hook (most important — gets first 3 seconds of viewer attention):**
-- Must contain a claim, statistic, or curious question
-- NEVER generic ("Hôm nay chúng ta sẽ nói về..." is wrong)
-- ALWAYS include at least 1 effect: `flash-white-3f` or `particle-burst`
+- Must contain a bold claim, shocking statistic, or curious question.
+- NEVER generic ("Hôm nay chúng ta sẽ nói về..." is wrong).
+- ALWAYS include compelling headline and subhead.
 
-**Visual rules:**
-- For image scenes: `background.src = "$source.image"` (literal — CLI substitutes)
-- Vary `kenBurns` across scenes (don't use `zoom-in` for every scene)
-- Vary text `animation` (don't use `slide-up` for every line)
-- Each line ≤ 25 characters
-- Each scene 1-3 lines
+### 🖼️ Multi-Image & Rich Visual Rules (BẮT BUỘC)
 
-**Outro (always fixed format):**
+Video cần sống động với **hình ảnh thay đổi liên tục theo từng phân cảnh**, không để cả video dùng 1 ảnh đơn điệu hay gradient tĩnh:
+
+1. **Gán ảnh cho từng phân cảnh (`bgSrc`):**
+   - **Cảnh Hook**: dùng `$source.image` (hoặc ảnh tiêu đề chính của bài báo).
+   - **Các cảnh Body (`comparison`, `stat-hero`, `feature-list`, `callout`)**:
+     - Sử dụng các ảnh thực tế khác có trong bài báo (URL từ `images[]` ở Step 2).
+     - Nếu bài báo ít ảnh hoặc ảnh ngang khó crop, **hãy dùng công cụ `generate_image`** để tạo ảnh chân dung 9:16 (`AspectRatio: "9:16"`) độ nét cao, chuẩn bối cảnh Việt Nam (ví dụ: sổ đỏ, bản đồ số 3D Việt Nam, văn phòng công chứng, tòa nhà hiện đại, hợp đồng, đồ thị kinh tế...).
+     - Lưu ảnh vào thư mục `<outputDir>/images/<tên-ảnh>.jpg` và đặt `bgSrc: "images/<tên-ảnh>.jpg"`.
+   - **Cảnh Outro**: có thể dùng ảnh sổ đỏ, văn phòng hoặc biểu tượng liên quan đến kênh/nội dung.
+
+2. **Hiệu ứng chuyển động ảnh (Ken Burns):**
+   - BẮT BUỘC thay đổi `kenBurns` giữa các scene: `zoom-in`, `zoom-out`, `pan-left`, `pan-right`.
+   - Tuyệt đối không dùng 1 hiệu ứng lặp lại cho tất cả các cảnh.
+
+3. **Độ chi tiết và chiều sâu nội dung (Rich Details):**
+   - **Độ dài giọng đọc**: Target ~180–200 từ tiếng Việt → đạt thời lượng ~55–60 giây spoken (tận dụng tối đa khung thời lượng vàng cho Shorts/TikTok).
+   - **Số lượng phân cảnh**: 6–8 scenes (1 hook + 4–6 body + 1 outro).
+   - **Nội dung sâu sắc**:
+     - Đưa số liệu cụ thể (phần trăm, tiền tệ, mốc thời gian, số lượng).
+     - So sánh trước và sau (Before vs After / Hiện hành vs Đề xuất mới).
+     - Bổ sung 3–4 gạch đầu dòng rõ ràng trong `feature-list`.
+     - Phân tích rõ lợi ích, tác động thực tế tới người dân/người xem trong cảnh `callout`.
+
+**Các template hợp lệ (`templateData.template`):**
+- `hook`: `headline` (max 40 chars), `subhead` (max 40 chars), `bgSrc`, `kenBurns`
+- `comparison`: `left: { label (max 30), value (max 20), color: "purple"|"cyan" }`, `right: { label (max 30), value (max 20), color: "purple"|"cyan", winner: true }`, `bgSrc`, `kenBurns`
+- `stat-hero`: `value` (max 20), `label` (max 40), `context` (max 50), `bgSrc`, `kenBurns`
+- `feature-list`: `title` (max 40), `bullets` (1-4 chuỗi, max 50 chars mỗi mục), `icon: "spark"`, `bgSrc`, `kenBurns`
+- `callout`: `statement` (max 80 chars), `tag` (max 20 chars), `bgSrc`, `kenBurns`
+- `outro`: `ctaTop` (max 30), `channelName` (max 30), `source` (max 40), `bgSrc`, `kenBurns`
+
+**Outro chuẩn format:**
 ```json
 {
   "id": "outro",
   "type": "outro",
-  "voiceText": "Theo dõi CườngIT để xem bản tin mới mỗi ngày.",
-  "visual": {
-    "background": { "type": "gradient", "preset": "outro-purple" },
-    "text": {
-      "position": "center",
-      "style": "outro-card",
-      "lines": [
-        { "content": "Xem bản tin mới mỗi ngày", "emphasis": "primary", "animation": "fade-in" },
-        { "content": "CườngIT",            "emphasis": "channel", "animation": "scale-pop" },
-        { "content": "Nguồn: <DOMAIN>",          "emphasis": "muted",   "animation": "fade-in-late" }
-      ]
-    }
+  "voiceText": "Theo dõi kênh để xem bản tin mới mỗi ngày.",
+  "templateData": {
+    "template": "outro",
+    "ctaTop": "Cập nhật tin mới mỗi ngày",
+    "channelName": "Tin tức 24h",
+    "source": "<DOMAIN>",
+    "bgSrc": "images/...",
+    "kenBurns": "zoom-out"
   }
 }
 ```
-Replace `<DOMAIN>` with the actual domain string. Note: outro line 1 is shortened to fit 25-char schema rule (full CTA "Theo dõi để xem bản tin mới mỗi ngày" is 36 chars).
+Replace `<DOMAIN>` with the actual domain string.
 
 ### Step 5: Self-validate before writing
 
@@ -185,44 +209,193 @@ If exit code != 0:
 - Report the error message clearly
 - Tell user the output dir path so they can inspect intermediate files
 
-### Step 8: Generate TikTok caption + hashtags
+### Step 8: Generate Title, Description, and Hashtags (caption.txt)
 
 Only run this step if Step 7 (the pipeline) succeeded — don't caption a video that wasn't actually produced.
 
-Write a short Vietnamese caption + exactly 4 hashtags for the video, based on `script.metadata.title` and the scenes' content.
+Tạo nội dung xuất bản hoàn chỉnh gồm **Tiêu đề**, **Mô tả chi tiết**, **Hashtags**, và **Khối đăng nhanh** cho video dựa trên `script.metadata.title`, nội dung các scenes và nguồn tin.
 
-**Caption rules:**
-- 1 short, punchy line (~10–20 words), Vietnamese, văn nói.
-- Reuse or riff on the hook's claim/question.
-- 1 emoji is OK if it fits naturally.
-- No markdown, no line breaks inside the caption itself.
+**Quy tắc chi tiết:**
 
-**Hashtag rules — exactly 4, in this order:**
-1. One broad tech/niche tag in Vietnamese (e.g. `#congnghe`, `#thuthuat`)
-2. One or two tags specific to the video's actual topic/product/company (e.g. `#openai`, `#ai`, `#pdf`, `#codegraph`)
-3. One channel/discovery tag: `#cuongit` (and `#fyp` or `#xuhuong` if there's room — still capped at 4 total)
-- Lowercase, no spaces, no punctuation inside a tag.
+1. **Tiêu đề video (Title):**
+   - 1 câu ngắn gọn, giật tít, cuốn hút, nêu bật thông tin sốt dẻo hoặc câu hỏi tò mò (~10–20 từ).
+   - Tối ưu SEO cho TikTok, YouTube Shorts, Facebook Reels.
 
-Write the result to `<outputDir>/caption.txt` using `write_to_file`:
+2. **Mô tả video (Description):**
+   - Tóm tắt 2–4 ý chính (hoặc gạch đầu dòng) về nội dung quan trọng nhất của bản tin.
+   - Thêm ngữ cảnh, thời gian áp dụng, tác động đối với người dân.
+   - Thêm lời kêu gọi hành động (CTA tương tác, follow kênh).
+   - Ghi rõ nguồn tin (`Nguồn: <domain>`).
+
+3. **Hashtags:**
+   - Đầy đủ 5–7 hashtags liên quan:
+     1. **Bắt buộc có:** `#shorts`
+     2. Tag chuyên mục/chủ đề rộng (vd: `#tintuc`, `#batdongsan`, `#congnghe`, `#phapluat`)
+     3. Tag chi tiết nội dung/từ khóa chính (vd: `#congchung`, `#nhadat`, `#luatdatdai`)
+     4. Tag kênh: `#tintuc` (hoặc tag thương hiệu riêng)
+     5. Tag xu hướng: `#xuhuong`, `#fyp`
+   - Tất cả viết thường, không dấu cách, không ký tự đặc biệt.
+
+4. **Khối đăng nhanh (Quick-post):**
+   - Khối văn bản kết hợp hoàn chỉnh tiêu đề + tóm tắt 1-2 câu + hashtags để người dùng copy 1 chạm dán thẳng vào ứng dụng.
+
+Ghi kết quả vào `<outputDir>/caption.txt` bằng `write_to_file`:
 ```
-<caption line>
+=== TIÊU ĐỀ VIDEO ===
+<Tiêu đề hấp dẫn, giật tít>
 
-#tag1 #tag2 #tag3 #tag4
+=== MÔ TẢ VIDEO ===
+<Mô tả tóm tắt chi tiết 2–4 điểm chính của bản tin>
+- <Ý 1>
+- <Ý 2>
+- <Ý 3>
+
+<Lời kêu gọi hành động CTA>
+Nguồn: <domain>
+
+=== HASHTAGS ===
+#shorts #tag1 #tag2 #tag3 #tintuc #xuhuong #fyp
+
+=== NỘI DUNG ĐĂNG NHANH (TIKTOK / SHORTS / REELS) ===
+<Tiêu đề hoặc hook ngắn + emoji phù hợp>
+
+<Tóm tắt 1-2 câu điểm nhấn quan trọng nhất>
+
+#shorts #tag1 #tag2 #tag3 #tintuc #xuhuong
 ```
 
 ### Step 9: Report success
 
-If successful, report to user with markdown links:
+Báo cáo cho người dùng với markdown links:
 
 ```markdown
-✓ Video:   [video.mp4](output/<slug>-<timestamp>/video.mp4)
-✓ Audio:   [voice.mp3](output/<slug>-<timestamp>/voice.mp3) — for CapCut
-✓ Script:  [script.txt](output/<slug>-<timestamp>/script.txt) — for CapCut auto-caption
-✓ Caption: [caption.txt](output/<slug>-<timestamp>/caption.txt) — for TikTok upload
+✓ Video:     [video.mp4](output/<slug>-<timestamp>/video.mp4)
+✓ Thumbnail: [thumbnail.jpg](output/<slug>-<timestamp>/thumbnail.jpg) — ảnh bìa 9:16 sắc nét
+✓ Audio:     [voice.mp3](output/<slug>-<timestamp>/voice.mp3) — cho CapCut
+✓ Script:    [script.txt](output/<slug>-<timestamp>/script.txt) — cho CapCut auto-caption
+✓ Caption:   [caption.txt](output/<slug>-<timestamp>/caption.txt) — Tiêu đề, mô tả & hashtags đăng TikTok/Shorts
 Tổng thời lượng: XX.Xs
 
-<caption line>
-#tag1 #tag2 #tag3 #tag4
+=== TIÊU ĐỀ ===
+<Tiêu đề>
+
+=== MÔ TẢ ===
+<Mô tả ngắn gọn>
+
+=== HASHTAGS ===
+#shorts #tag1 #tag2 #tag3 #tintuc #xuhuong
+```
+
+## Example: Full script.json Structure
+
+```json
+{
+  "version": "1.0",
+  "metadata": {
+    "title": "Đề xuất công chứng nhà đất trên toàn quốc từ 1.7.2028",
+    "source": {
+      "url": "https://thanhnien.vn/de-xuat-cong-chung-nha-dat-tren-toan-quoc-tu-172028-185260904143500945.htm",
+      "domain": "thanhnien.vn",
+      "image": "https://images2.thanhnien.vn/.../main.jpeg"
+    },
+    "channel": "Tin tức 24h"
+  },
+  "voice": {
+    "provider": "edge-tts",
+    "voiceId": "${VOICE_ID}",
+    "speed": 1.0
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "type": "hook",
+      "voiceText": "Từ ngày một tháng bảy năm 2028, người dân cả nước có thể công chứng mua bán nhà đất ở bất kỳ đâu, mà không còn bị giới hạn bởi địa giới hành chính.",
+      "templateData": {
+        "template": "hook",
+        "headline": "Công chứng nhà đất toàn quốc",
+        "subhead": "Đề xuất từ tháng 7 năm 2028",
+        "bgSrc": "images/bg.jpg",
+        "kenBurns": "zoom-in"
+      }
+    },
+    {
+      "id": "body-1",
+      "type": "body",
+      "voiceText": "Theo luật hiện hành, bạn chỉ được công chứng nhà đất trong phạm vi tỉnh hoặc thành phố nơi đặt trụ sở. Đề xuất mới của Bộ Tư pháp sẽ mở rộng quyền này ra toàn quốc.",
+      "templateData": {
+        "template": "comparison",
+        "bgSrc": "images/ban-do-so.jpg",
+        "kenBurns": "pan-left",
+        "left": {
+          "label": "Hiện hành",
+          "value": "Cùng tỉnh thành",
+          "color": "purple"
+        },
+        "right": {
+          "label": "Đề xuất mới",
+          "value": "Cả 63 tỉnh thành",
+          "color": "cyan",
+          "winner": true
+        }
+      }
+    },
+    {
+      "id": "body-2",
+      "type": "body",
+      "voiceText": "Mốc thời gian áp dụng dự kiến là ngày một tháng bảy năm 2028. Bởi đến hết năm 2027, hệ thống cơ sở dữ liệu quốc gia về đất đai và công chứng mới cơ bản hoàn thành để liên thông.",
+      "templateData": {
+        "template": "stat-hero",
+        "bgSrc": "images/ban-do-so.jpg",
+        "kenBurns": "zoom-out",
+        "value": "01/07/2028",
+        "label": "Thời điểm áp dụng",
+        "context": "Hoàn tất CSDL đất đai cuối năm 2027"
+      }
+    },
+    {
+      "id": "body-3",
+      "type": "body",
+      "voiceText": "Dự thảo bổ sung quy định cho phép công chứng ngoài trụ sở với các giao dịch tài sản từ một tỉ đồng trở lên khi bàn giao giấy tờ. Đồng thời chuyển giao thẩm quyền chứng thực từ ủy ban nhân dân xã sang các phòng công chứng.",
+      "templateData": {
+        "template": "feature-list",
+        "bgSrc": "images/ky-giay-to.jpg",
+        "kenBurns": "pan-right",
+        "title": "3 Thay đổi mang tính đột phá",
+        "bullets": [
+          "Công chứng ngoài trụ sở từ 1 tỉ đồng",
+          "Ký kết đồng thời bàn giao tài sản",
+          "Chuyển thẩm quyền từ xã sang công chứng"
+        ],
+        "icon": "spark"
+      }
+    },
+    {
+      "id": "body-4",
+      "type": "body",
+      "voiceText": "Thay đổi này sẽ tạo thuận lợi tối đa cho người dân mua bán nhà đất liên tỉnh, tiết kiệm hàng triệu đồng chi phí đi lại, đồng thời giảm tải áp lực công việc cho cán bộ cấp xã.",
+      "templateData": {
+        "template": "callout",
+        "bgSrc": "images/so-do.jpg",
+        "kenBurns": "zoom-in",
+        "statement": "Tiết kiệm tối đa chi phí đi lại, giảm thủ tục rườm rà và tăng tính minh bạch.",
+        "tag": "Lợi ích người dân"
+      }
+    },
+    {
+      "id": "outro",
+      "type": "outro",
+      "voiceText": "Theo dõi kênh để xem bản tin mới mỗi ngày.",
+      "templateData": {
+        "template": "outro",
+        "bgSrc": "images/so-do.jpg",
+        "kenBurns": "zoom-out",
+        "ctaTop": "Cập nhật tin mới mỗi ngày",
+        "channelName": "Tin tức 24h",
+        "source": "thanhnien.vn"
+      }
+    }
+  ]
+}
 ```
 
 ## Sound Effects (SFX)

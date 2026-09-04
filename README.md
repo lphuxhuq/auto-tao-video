@@ -88,6 +88,10 @@ cp .env.example .env.local
 > 💡 **Mặc định dự án cấu hình Edge TTS hoàn toàn miễn phí, không cần bất kỳ API key nào.** Bạn có thể tạo video ngay lập tức!
 > 
 > *(Nếu muốn dùng LucyLab, Vbee hoặc ElevenLabs, mở file `.env.local` và điền key tương ứng).*
+>
+> 🏷️ **Tuỳ chỉnh Watermark & Cảnh Outro:**
+> - Mở `.env.local` để tuỳ biến thông tin watermark thương hiệu (`SHOW_WATERMARK`, `WATERMARK_BRAND_NAME`, `WATERMARK_HANDLE`...).
+> - Tuỳ chỉnh hoặc bật/tắt cảnh outro (`SHOW_OUTRO=true/false`, `OUTRO_CHANNEL_NAME`, `OUTRO_CTA_TOP`, `OUTRO_SHOW_TIKTOK_CARD`...).
 
 ### 3. Tạo video đầu tiên!
 
@@ -111,7 +115,7 @@ claude
 > 1. Đọc bài báo từ URL hoặc file .txt tiếng Việt.
 > 2. Viết lời bình tiếng Việt chuẩn ngữ âm, chia cảnh và chọn template motion graphics.
 > 3. Tự gọi pipeline: sinh voice (Edge TTS Free) + render HyperFrames + mix nhạc & SFX.
-> 4. Xuất video `.mp4` cùng file `caption.txt` có sẵn hashtag đăng TikTok!
+> 4. Xuất video `.mp4` + `thumbnail.jpg` (ảnh bìa 9:16) + `caption.txt` (Tiêu đề, mô tả chi tiết & hashtags `#shorts` sẵn sàng đăng TikTok, Reels, Shorts)!
 
 #### 🛠️ Cách 2: Render trực tiếp từ file kịch bản (Thủ công)
 
@@ -121,7 +125,7 @@ Nếu không dùng AI, bạn có thể render từ file mẫu hoặc file `scrip
 npm run pipeline -- tests/fixtures/sample-script-no-image.json
 ```
 
-🎉 **Kết quả**: Video thành phẩm sẽ được lưu tại `output/<slug>/<slug>.mp4`.
+🎉 **Kết quả**: Video thành phẩm sẽ được lưu tại `output/<slug>/video.mp4` kèm `thumbnail.jpg`.
 
 ---
 
@@ -157,6 +161,7 @@ npm test
 
 ```text
 auto-video-gen/
+├── .agents/skills/        # Google Antigravity skill tạo kịch bản tự động
 ├── .claude/skills/        # Claude Code skill tạo kịch bản tự động
 ├── src/
 │   ├── config.ts          # Đọc & validate biến môi trường (.env)

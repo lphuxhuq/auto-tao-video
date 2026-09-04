@@ -201,3 +201,29 @@ export async function mixSfxOntoVoice(
 
   await run("ffmpeg", ffArgs);
 }
+
+/**
+ * Extract a high-quality frame from a video file to use as a thumbnail.
+ * Default offset is 1.5 seconds so initial animations/elements have faded in.
+ */
+export async function extractThumbnail(
+  videoPath: string,
+  thumbnailPath: string,
+  offsetSec: number = 1.5,
+): Promise<void> {
+  await run("ffmpeg", [
+    "-y",
+    "-ss",
+    offsetSec.toFixed(3),
+    "-i",
+    videoPath,
+    "-update",
+    "1",
+    "-frames:v",
+    "1",
+    "-q:v",
+    "2",
+    thumbnailPath,
+  ]);
+}
+

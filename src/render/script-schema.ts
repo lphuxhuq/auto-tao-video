@@ -2,6 +2,8 @@ import { z } from "zod";
 
 // ── Template data shapes (discriminated by template field) ─────────────────
 
+const KenBurnsEnum = z.enum(["zoom-in", "zoom-out", "pan-left", "pan-right"]);
+
 const HookData = z.object({
   template: z.literal("hook"),
   headline: z.string().min(1).max(40),
@@ -9,7 +11,7 @@ const HookData = z.object({
   /** background image path (literal "$source.image" → substituted at pipeline level) */
   bgSrc: z.string().optional(),
   /** Ken Burns effect class */
-  kenBurns: z.enum(["zoom-in", "zoom-out", "pan-left", "pan-right"]).default("zoom-in"),
+  kenBurns: KenBurnsEnum.default("zoom-in"),
 });
 
 const ComparisonSide = z.object({
@@ -22,6 +24,8 @@ const ComparisonData = z.object({
   template: z.literal("comparison"),
   left: ComparisonSide,
   right: ComparisonSide.extend({ winner: z.boolean().optional() }),
+  bgSrc: z.string().optional(),
+  kenBurns: KenBurnsEnum.optional(),
 });
 
 const StatHeroData = z.object({
@@ -29,6 +33,8 @@ const StatHeroData = z.object({
   value: z.string().min(1).max(20),
   label: z.string().min(1).max(40),
   context: z.string().max(50).optional(),
+  bgSrc: z.string().optional(),
+  kenBurns: KenBurnsEnum.optional(),
 });
 
 const FeatureListData = z.object({
@@ -36,12 +42,16 @@ const FeatureListData = z.object({
   title: z.string().min(1).max(40),
   bullets: z.array(z.string().min(1).max(50)).min(1).max(4),
   icon: z.string().optional(),
+  bgSrc: z.string().optional(),
+  kenBurns: KenBurnsEnum.optional(),
 });
 
 const CalloutData = z.object({
   template: z.literal("callout"),
   statement: z.string().min(1).max(80),
   tag: z.string().max(20).optional(),
+  bgSrc: z.string().optional(),
+  kenBurns: KenBurnsEnum.optional(),
 });
 
 const OutroData = z.object({
@@ -49,6 +59,8 @@ const OutroData = z.object({
   ctaTop: z.string().min(1).max(30),
   channelName: z.string().min(1).max(30),
   source: z.string().min(1).max(40),
+  bgSrc: z.string().optional(),
+  kenBurns: KenBurnsEnum.optional(),
 });
 
 export const TemplateData = z.discriminatedUnion("template", [

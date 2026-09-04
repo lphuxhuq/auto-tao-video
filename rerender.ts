@@ -45,6 +45,19 @@ async function main() {
       : cfg.vbeeVoiceCode;
   }
   const script = ScriptSchema.parse(raw);
+  if (!cfg.outro.enabled) {
+    script.scenes = script.scenes.filter((s) => s.type !== "outro");
+  } else {
+    const outroScene = script.scenes.find((s) => s.type === "outro");
+    if (outroScene) {
+      if (cfg.outro.channelName && outroScene.templateData.template === "outro") {
+        outroScene.templateData.channelName = cfg.outro.channelName;
+      }
+      if (cfg.outro.ctaTop && outroScene.templateData.template === "outro") {
+        outroScene.templateData.ctaTop = cfg.outro.ctaTop;
+      }
+    }
+  }
 
   // Probe per-scene durations from existing voice files
   const sceneAudio = await Promise.all(
@@ -131,7 +144,10 @@ async function main() {
     audioRelPath: "voice.mp3",
     tiktok: cfg.tiktok,
     tiktokAvatarRelPath: ttAvatarFile,
-    outroHoldSec: 3,
+    outroHoldSec: cfg.outro.holdSec,
+    showWatermark: cfg.watermark.enabled,
+    watermark: cfg.watermark,
+    outro: cfg.outro,
   });
   await writeFile(join(outputDir, "index.html"), html);
   await writeFile(join(outputDir, "hyperframes.json"), JSON.stringify(HYPERFRAMES_CONFIG, null, 2));

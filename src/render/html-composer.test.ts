@@ -98,4 +98,46 @@ describe("composeHtml", () => {
     expect(html).toContain('class="bg gradient-news-dark"');
     expect(html).not.toContain("background-image: url");
   });
+
+  it("omits watermark when enabled is false", () => {
+    const script = JSON.parse(readFileSync("tests/fixtures/sample-script-with-image.json", "utf8")) as Script;
+    const sceneAudio = script.scenes.map((s) => ({ id: s.id, durationSec: 5 }));
+    const html = composeHtml({
+      script,
+      sceneAudio,
+      gapSec: 0.3,
+      bgImageRelPath: null,
+      audioRelPath: "voice.mp3",
+      watermark: { enabled: false },
+    });
+    expect(html).not.toContain('class="brand-shell-header"');
+    expect(html).not.toContain('class="brand-shell-handle"');
+    expect(html).toContain('class="brand-shell-keyword"');
+  });
+
+  it("renders custom watermark brand, tag, icon, and handle", () => {
+    const script = JSON.parse(readFileSync("tests/fixtures/sample-script-with-image.json", "utf8")) as Script;
+    const sceneAudio = script.scenes.map((s) => ({ id: s.id, durationSec: 5 }));
+    const html = composeHtml({
+      script,
+      sceneAudio,
+      gapSec: 0.3,
+      bgImageRelPath: null,
+      audioRelPath: "voice.mp3",
+      watermark: {
+        enabled: true,
+        brandName: "Kênh Độc Quyền",
+        brandTag: "EXCLUSIVE",
+        brandIcon: "⚡",
+        handle: "@docquyen24h",
+        showHeader: true,
+        showHandle: true,
+        showDomain: true,
+      },
+    });
+    expect(html).toContain("Kênh Độc Quyền");
+    expect(html).toContain("EXCLUSIVE");
+    expect(html).toContain("⚡");
+    expect(html).toContain("@docquyen24h");
+  });
 });
