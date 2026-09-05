@@ -148,20 +148,50 @@ Video cần sống động với **hình ảnh thay đổi liên tục theo từ
 
 3. **Độ chi tiết và chiều sâu nội dung (Rich Details):**
    - **Độ dài giọng đọc**: Target ~180–200 từ tiếng Việt → đạt thời lượng ~55–60 giây spoken (tận dụng tối đa khung thời lượng vàng cho Shorts/TikTok).
-   - **Số lượng phân cảnh**: 6–8 scenes (1 hook + 4–6 body + 1 outro).
+   - **Số lượng phân cảnh**: 5–7 scenes (1 hook + 3–5 body + 1 outro).
    - **Nội dung sâu sắc**:
      - Đưa số liệu cụ thể (phần trăm, tiền tệ, mốc thời gian, số lượng).
      - So sánh trước và sau (Before vs After / Hiện hành vs Đề xuất mới).
-     - Bổ sung 3–4 gạch đầu dòng rõ ràng trong `feature-list`.
+     - Bổ sung 2–3 gạch đầu dòng rõ ràng trong `feature-list`.
      - Phân tích rõ lợi ích, tác động thực tế tới người dân/người xem trong cảnh `callout`.
 
-**Các template hợp lệ (`templateData.template`):**
-- `hook`: `headline` (max 40 chars), `subhead` (max 40 chars), `bgSrc`, `kenBurns`
-- `comparison`: `left: { label (max 30), value (max 20), color: "purple"|"cyan" }`, `right: { label (max 30), value (max 20), color: "purple"|"cyan", winner: true }`, `bgSrc`, `kenBurns`
-- `stat-hero`: `value` (max 20), `label` (max 40), `context` (max 50), `bgSrc`, `kenBurns`
-- `feature-list`: `title` (max 40), `bullets` (1-4 chuỗi, max 50 chars mỗi mục), `icon: "spark"`, `bgSrc`, `kenBurns`
-- `callout`: `statement` (max 80 chars), `tag` (max 20 chars), `bgSrc`, `kenBurns`
-- `outro`: `ctaTop` (max 30), `channelName` (max 30), `source` (max 40), `bgSrc`, `kenBurns`
+### 🧠 Ma trận Phân loại Thể loại Tin tức & Công thức Chọn Template Tự động
+
+Khi phân tích bài báo, BẮT BUỘC xác định thể loại chính để áp dụng công thức phối cảnh (Scene Flow) phù hợp nhất:
+
+| Thể loại tin tức | Đặc trưng nhận diện | Công thức phân cảnh (Scene Flow) đề xuất |
+|---|---|---|
+| **1. Pháp luật / Vụ án / An ninh** | Khởi tố, truy tố, bắt giữ, đường dây cá cược, lừa đảo, số tiền chiếm đoạt, số bị can | `hook` ➔ `stat-hero` (số bị can hoặc số tiền thu lợi) ➔ `callout` (thủ đoạn tinh vi hoặc lời khai) ➔ `feature-list` (hành vi vi phạm hoặc các bên liên quan) ➔ `callout` (kết luận/hệ lụy) ➔ `outro` |
+| **2. Kinh tế / Tài chính / BĐS** | Giá vàng, chứng khoán, lãi suất, bất động sản, luật đất đai, tăng trưởng GDP, xuất nhập khẩu | `hook` ➔ `stat-hero` (mức giá kỷ lục hoặc tỷ lệ %) ➔ `comparison` (so sánh trước vs sau, hoặc trong nước vs thế giới) ➔ `feature-list` (các điều kiện/chính sách mới) ➔ `callout` (tác động tới túi tiền người dân) ➔ `outro` |
+| **3. Công nghệ / Thiết bị / AI** | Ra mắt điện thoại, chip mới, mô hình AI, benchmark, tính năng phần mềm, xe điện | `hook` ➔ `stat-hero` (điểm benchmark, giá bán hoặc thông số khủng) ➔ `comparison` (đối đầu 2 model hoặc 2 hãng) ➔ `feature-list` (danh sách tính năng mới) ➔ `callout` (đánh giá chuyên gia/ngày mở bán) ➔ `outro` |
+| **4. Đời sống / Xã hội / Giao thông** | Nghị định mới, tăng mức xử phạt, thời tiết cực đoan, y tế, giáo dục, quy hoạch đô thị | `hook` ➔ `stat-hero` (mức phạt cao nhất hoặc mốc thời gian áp dụng) ➔ `feature-list` (các trường hợp vi phạm hoặc điểm mới cần nhớ) ➔ `callout` (lời khuyên an toàn/cảnh báo người dân) ➔ `outro` |
+| **5. Thể thao / Giải trí** | Tỉ số trận đấu, kỷ lục giải đấu, chuyển nhượng cầu thủ, scandal, sự kiện văn hóa lớn | `hook` ➔ `stat-hero` (tỉ số, kỷ lục hoặc mức phí chuyển nhượng) ➔ `comparison` (so sánh thành tích 2 đội/vận động viên) ➔ `feature-list` (diễn biến chính hoặc danh sách bàn thắng) ➔ `callout` (phát biểu/nhận định) ➔ `outro` |
+
+---
+
+### 🛡️ Ràng buộc Schema Bắt buộc (Strict Schema Guards)
+
+Tránh hoàn toàn lỗi Zod Schema — BẮT BUỘC tuân thủ đúng tên trường và giới hạn ký tự:
+
+| Template | Trường dữ liệu | Giới hạn ký tự | Quy tắc định dạng bắt buộc |
+|---|---|---|---|
+| **`hook`** | `headline` | **≤ 40 ký tự** | Câu giật tít ngắn, có thể viết in hoa từ khóa chính. |
+| | `subhead` | **≤ 40 ký tự** | Dòng phụ đề tóm tắt ngữ cảnh (tùy chọn). |
+| **`stat-hero`** | `value` | **≤ 20 ký tự** | Con số nổi bật + đơn vị ngắn (vd: `74 BỊ CAN`, `2,4 TỶ ĐỒNG`, `82.5%`). |
+| | `label` | **≤ 40 ký tự** | Nhãn mô tả con số (vd: `Đề nghị truy tố`, `Tiền công lập trình`). |
+| | `context` | **≤ 50 ký tự** | **Đúng tên trường `context` (TUYỆT ĐỐI KHÔNG DÙNG `subtext`)**. |
+| **`callout`** | `statement` | **≤ 80 ký tự** | **TUYỆT ĐỐI KHÔNG vượt quá 80 ký tự! Chỉ 1 câu đơn cô đọng.** |
+| | `tag` | **≤ 20 ký tự** | Nhãn góc trên (vd: `Thủ đoạn tinh vi`, `Tác động`, `Lưu ý`). |
+| **`feature-list`** | `title` | **≤ 40 ký tự** | Tiêu đề khối danh sách. |
+| | `bullets` | 1–4 chuỗi | **Mảng chuỗi thuần `string[]`, mỗi chuỗi ≤ 50 ký tự (KHÔNG DÙNG mảng object `{title, desc}`)**. |
+| | `icon` | string (tùy chọn) | Biểu tượng: `"spark"`, `"shield"`, `"zap"`, `"alert"`. |
+| **`comparison`** | `left.label`, `right.label` | **≤ 30 ký tự** | Tên 2 bên so sánh (vd: `Hiện hành`, `Đề xuất mới`). |
+| | `left.value`, `right.value` | **≤ 20 ký tự** | Giá trị định lượng (vd: `Trong tỉnh`, `Toàn quốc`). |
+| | `color` | enum | Chỉ nhận `"purple"` hoặc `"cyan"`. |
+| | `winner` | boolean | `true` ở `right` nếu bên phải là bên vượt trội/thắng. |
+| **`outro`** | `ctaTop` | **≤ 30 ký tự** | Kêu gọi hành động (vd: `Cập nhật tin mới mỗi ngày`). |
+| | `channelName` | **≤ 30 ký tự** | Tên kênh hiển thị. |
+| | `source` | **≤ 40 ký tự** | Domain nguồn tin (vd: `vnexpress.net`, `thanhnien.vn`). |
 
 **Outro chuẩn format:**
 ```json
@@ -183,15 +213,17 @@ Replace `<DOMAIN>` with the actual domain string.
 
 ### Step 5: Self-validate before writing
 
-Check:
-- Total word count ~150-200
-- Every line.content ≤ 25 chars
-- 5-8 scenes total
-- scenes[0].type === "hook"
-- last scene type === "outro"
-- All enum values valid (see spec Section 4.2)
+Trước khi gọi `write_to_file`, bạn BẮT BUỘC tự rà soát danh sách sau:
+1. **Kiểm tra số cảnh**: 5–7 cảnh (cảnh 0 luôn là `hook`, cảnh cuối luôn là `outro`).
+2. **Kiểm tra độ dài giọng đọc**: Tổng số từ `voiceText` ~150–200 từ tiếng Việt.
+3. **Kiểm tra giới hạn ký tự Schema**:
+   - Mọi `statement` trong `callout`: **Đếm từng ký tự xem có ≤ 80 ký tự không**. Nếu dài hơn, cắt gọn lại ngay!
+   - Mọi `bullets` trong `feature-list`: Phải là mảng chuỗi `["dòng 1", "dòng 2"]`, mỗi chuỗi **≤ 50 ký tự**.
+   - Mọi `context` trong `stat-hero`: Phải dùng đúng tên thuộc tính `context` (không được gõ `subtext`), **≤ 50 ký tự**.
+   - Mọi `headline`: **≤ 40 ký tự**.
+4. **Kiểm tra phiên âm số**: Không để số thập phân hay ký hiệu lạ trong `voiceText` (tuân thủ mục CRITICAL Vietnamese TTS).
 
-If invalid, fix yourself silently. Up to 2 self-correction passes. After that, write anyway — the CLI's Zod validation will produce a precise error message that the user can act on.
+Nếu phát hiện vi phạm, tự sửa ngay trước khi ghi file!
 
 ### Step 6: Write script.json
 
